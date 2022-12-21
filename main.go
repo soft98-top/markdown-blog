@@ -141,7 +141,7 @@ func webCommand() *cli.Command {
 		}),
 	}
 
-	flags = append(commonFlags, proxyFlags...)
+	flags = append(flags, proxyFlags...)
 
 	analyzerFlags := []cli.Flag{
 		altsrc.NewStringFlag(&cli.StringFlag{
