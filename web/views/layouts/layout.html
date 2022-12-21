@@ -6,7 +6,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>{{ .HeadTitle }}</title>
 	{{if .Analyzer.GoogleAd}}
-	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{.Analyzer.GoogleAd}}"
+	<script async src="https://{{.Proxy.GoogleAd}}/pagead/js/adsbygoogle.js?client={{.Analyzer.GoogleAd}}"
 			crossorigin="anonymous"></script>
 	{{end}}
 	<link rel="stylesheet" id="theme-css" href="/static/css/github-markdown-css/dark.css">
@@ -36,7 +36,7 @@
 
 	{{if .Analyzer.Google}}
 	<!-- Google tag (gtag.js) -->
-	<script async src="https://www.googletagmanager.com/gtag/js?id={{.Analyzer.Google}}"></script>
+	<script async src="https://{{.Proxy.GoogleAy}}/gtag/js?id={{.Analyzer.Google}}"></script>
 	<script>
 		window.dataLayer = window.dataLayer || [];
 		function gtag(){dataLayer.push(arguments);}
@@ -85,12 +85,13 @@
 <script src="/static/js/main.js"></script>
 {{ if .Gitalk.ClientID }}
 <script src="/static/js/gitalk.min.js"></script>
+{{ if .Proxy.GithubApi }}
 <script src="/static/js/ajaxhook.min.js"></script>
 <script>
 	ah.proxy({
 		onRequest: (config,handler) => {
-			let api = '{{.Gitalk.Api}}';
-			let cors = '{{.Gitalk.Cors}}';
+			let api = '{{.Proxy.GithubApi}}';
+			let cors = '{{.Proxy.GithubCors}}';
 			if(api != undefined && api != "") {
 				config.url = config.url.replace("api.github.com", api);
 			}
@@ -101,6 +102,7 @@
 		}
 	});
 </script>
+{{end}}
 <script>
 	const gitalk = new Gitalk({
 		clientID: '{{.Gitalk.ClientID}}',

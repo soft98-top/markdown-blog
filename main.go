@@ -120,6 +120,29 @@ func webCommand() *cli.Command {
 
 	flags := append(commonFlags, gitalkFlags...)
 
+	proxyFlags := []cli.Flag{
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "proxy.github-api",
+			Usage: "Set up Github API Proxy, default is empty",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "proxy.github-cors",
+			Usage: "Set up Github CORS Proxy, default is empty",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "proxy.google-ad",
+			Value: "pagead2.googlesyndication.com",
+			Usage: "Set up Google AdSense Proxy",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "proxy.google-ay",
+			Value: "www.googletagmanager.com",
+			Usage: "Set up Google Analytics Proxy",
+		}),
+	}
+
+	flags = append(commonFlags, proxyFlags...)
+
 	analyzerFlags := []cli.Flag{
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:    "analyzer-baidu",

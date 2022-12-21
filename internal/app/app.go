@@ -36,6 +36,7 @@ var (
 	Cache      time.Duration
 	Analyzer   types.Analyzer
 	Gitalk     types.Gitalk
+	Proxy      types.Proxy
 )
 
 // web服务器默认端口
@@ -73,6 +74,7 @@ func RunWeb(ctx *cli.Context) error {
 
 		ctx.ViewData("Gitalk", Gitalk)
 		ctx.ViewData("Analyzer", Analyzer)
+		ctx.ViewData("Proxy", Proxy)
 		ctx.ViewData("Title", Title)
 		ctx.ViewData("HeadTitle", Title)
 		ctx.ViewData("Nav", navs)
@@ -111,8 +113,10 @@ func initParams(ctx *cli.Context) {
 	Analyzer.SetAnalyzer(ctx.String("analyzer-baidu"), ctx.String("analyzer-google"), ctx.String("analyzer-google-ad"))
 
 	// 设置Gitalk
-	Gitalk.SetGitalk(ctx.String("gitalk.client-id"), ctx.String("gitalk.client-secret"), ctx.String("gitalk.repo"), ctx.String("gitalk.owner"), ctx.StringSlice("gitalk.admin"), ctx.StringSlice("gitalk.labels"), ctx.String("gitalk.api"), ctx.String("gitalk.cors"))
+	Gitalk.SetGitalk(ctx.String("gitalk.client-id"), ctx.String("gitalk.client-secret"), ctx.String("gitalk.repo"), ctx.String("gitalk.owner"), ctx.StringSlice("gitalk.admin"), ctx.StringSlice("gitalk.labels"))
 
+	// 设置Proxy
+	Proxy.SetProxy(ctx.String("proxy.github-api"), ctx.String("proxy.github-cors"), ctx.String("proxy.google-ad"), ctx.String("proxy.google-ay"))
 	// 忽略文件
 	IgnoreFile = append(IgnoreFile, ctx.StringSlice("ignore-file")...)
 	IgnorePath = append(IgnorePath, ctx.StringSlice("ignore-path")...)
