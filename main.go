@@ -166,6 +166,36 @@ func webCommand() *cli.Command {
 
 	flags = append(flags, analyzerFlags...)
 
+	sitemapFlags := []cli.Flag{
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "sitemap.domain",
+			Value: "",
+			Usage: "Set up Sitemap Domain, default is empty",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "sitemap.tls",
+			Value: "true",
+			Usage: "Whether to use TLS, default is true",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "sitemap.cron",
+			Value: "",
+			Usage: "Set up Sitemap Crontab, default is empty",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "sitemap.path",
+			Value: "",
+			Usage: "Set up Sitemap path (router), default is /sitemap.xml",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:  "sitemap.exist-file",
+			Value: "",
+			Usage: "Set up Sitemap filepath, use this setting means mapping a static file and you cannot to update a sitemap with cron.",
+		}),
+	}
+
+	flags = append(flags, sitemapFlags...)
+
 	ignoreFlags := []cli.Flag{
 		altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
 			Name:  "ignore-file",

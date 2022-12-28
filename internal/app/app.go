@@ -1,8 +1,11 @@
 package app
 
 import (
+	"bufio"
+	"github.com/robfig/cron"
 	"html/template"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,7 +40,13 @@ var (
 	Analyzer   types.Analyzer
 	Gitalk     types.Gitalk
 	Proxy      types.Proxy
+	Sitemap    types.Sitemap
 )
+
+type urlNode struct {
+	url  string `json:"url"`
+	time string `json:"time"`
+}
 
 // web服务器默认端口
 const DefaultPort = 5006
@@ -86,6 +95,24 @@ func RunWeb(ctx *cli.Context) error {
 
 	app.Favicon("./favicon.ico")
 	app.HandleDir("/static", assets.AssetFile())
+	if Sitemap.Domain != "" || Sitemap.ExistFile != "" {
+		err := genSitemap()
+		if err == nil {
+			path := "/sitemap.xml"
+			if Sitemap.Path != "" {
+				path = Sitemap.Path
+			}
+			app.Get(path, iris.Cache(Cache), sitemapHandler)
+			if Sitemap.Cron != "" && Sitemap.ExistFile == "" {
+				c := cron.New()
+				c.AddFunc(Sitemap.Cron, func() {
+					app.Logger().Debugf("Run genSitemap...")
+					genSitemap()
+				})
+				c.Start()
+			}
+		}
+	}
 	app.Get("/{f:path}", iris.Cache(Cache), articleHandler)
 
 	app.Run(iris.Addr(":" + strconv.Itoa(parsePort(ctx))))
@@ -117,6 +144,10 @@ func initParams(ctx *cli.Context) {
 
 	// 设置Proxy
 	Proxy.SetProxy(ctx.String("proxy.github-api"), ctx.String("proxy.github-cors"), ctx.String("proxy.google-ad"), ctx.String("proxy.google-ay"))
+
+	//设置Sitemap
+	Sitemap.SetSitemap(ctx.String("sitemap.domain"), ctx.String("sitemap.tls"), ctx.String("sitemap.cron"), ctx.String("sitemap.path"), ctx.String("sitemap.exist-file"))
+
 	// 忽略文件
 	IgnoreFile = append(IgnoreFile, ctx.StringSlice("ignore-file")...)
 	IgnorePath = append(IgnorePath, ctx.StringSlice("ignore-path")...)
@@ -275,4 +306,82 @@ func mdToHtml(content []byte) template.HTML {
 	html := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
 
 	return template.HTML(string(html))
+}
+
+func genSitemap() error {
+	var sitemapTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  ${urls}
+</urlset>`
+	var urlTemplate = `<url>
+	<loc>${url}</loc>
+	<lastmod>${time}</lastmod>
+  </url>`
+	var domain string
+	if strings.ToLower(Sitemap.Tls) == "true" {
+		domain = "https://" + Sitemap.Domain + "/"
+	} else {
+		domain = "http://" + Sitemap.Domain + "/"
+	}
+	var option utils.Option
+	option.RootPath = []string{MdDir}
+	option.SubFlag = true
+	option.IgnorePath = IgnorePath
+	option.IgnoreFile = IgnoreFile
+	tree, _ := utils.Explorer(option)
+	var urls []urlNode
+	for _, v := range tree.Children {
+		getUrls(&urls, domain, v)
+	}
+	var urlsArray []string
+	for _, url := range urls {
+		urlStr := os.Expand(urlTemplate, func(s string) string {
+			switch s {
+			case "url":
+				return url.url
+			case "time":
+				return url.time
+			}
+			return ""
+		})
+		urlsArray = append(urlsArray, urlStr)
+	}
+	urlsStr := strings.Join(urlsArray, "\n  ")
+	sitemapStr := os.Expand(sitemapTemplate, func(s string) string {
+		switch s {
+		case "urls":
+			return urlsStr
+		}
+		return ""
+	})
+	filePath := "./sitemap.xml"
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	defer file.Close()
+	write := bufio.NewWriter(file)
+	write.WriteString(sitemapStr)
+	write.Flush()
+	return err
+}
+
+func getUrls(urls *[]urlNode, prefix string, node *utils.Node) {
+	for _, item := range node.Children {
+		if !item.IsDir && strings.HasSuffix(item.Name, ".md") {
+			info, _ := os.Stat(item.Path)
+			url := urlNode{
+				url:  prefix + url.PathEscape(strings.TrimSuffix(item.Name, ".md")),
+				time: info.ModTime().Format("2006-01-02 15:04:05"),
+			}
+			*urls = append(*urls, url)
+		} else {
+			getUrls(urls, prefix+url.PathEscape(item.Name)+"/", item)
+		}
+	}
+}
+
+func sitemapHandler(ctx iris.Context) {
+	fpath := "./sitemap.xml"
+	if Sitemap.ExistFile != "" {
+		fpath = Sitemap.ExistFile
+	}
+	ctx.SendFile(fpath, "sitemap.xml")
 }

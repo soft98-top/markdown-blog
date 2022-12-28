@@ -20,6 +20,13 @@ proxy:
   google-ad: "Reverse proxy of pagead2.googlesyndication.com, optional."
   google-ay: "Reverse proxy of www.googletagmanager.com, optional."
 
+sitemap:
+  domain: "Youer website domain, eg: www.google.com"
+  tls: "Whether to use TLS, default is true"
+  cron: "Set a cron to update sitemap file, eg(每天早上8点): 0 0 8 * * *"
+  path: "Custom sitemap router, default is /sitemap.xml"
+  exist-file: "Set up Sitemap filepath, use this setting means mapping a static file and you cannot to update a sitemap with cron."
+
 analyzer-baidu: "Your Baidu analyzer code"
 analyzer-google: "Your Google analyzer code"
 analyzer-google-ad: "Your Google AdSense code"
