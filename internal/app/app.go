@@ -46,6 +46,7 @@ var (
 type urlNode struct {
 	url  string `json:"url"`
 	time string `json:"time"`
+	name string `json:"name"`
 }
 
 // web服务器默认端口
@@ -103,6 +104,9 @@ func RunWeb(ctx *cli.Context) error {
 				path = Sitemap.Path
 			}
 			app.Get(path, iris.Cache(Cache), sitemapHandler)
+			genRobots(path)
+			app.Get("/robots.txt", iris.Cache(Cache), robotsHandler)
+			app.Get("/rss.xml", iris.Cache(Cache), rssHandler)
 			if Sitemap.Cron != "" && Sitemap.ExistFile == "" {
 				c := cron.New()
 				c.AddFunc(Sitemap.Cron, func() {
@@ -308,6 +312,79 @@ func mdToHtml(content []byte) template.HTML {
 	return template.HTML(string(html))
 }
 
+func genRSS(urls []urlNode, domain string) {
+	var rssTemplate = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+
+<channel>
+  <title>${site_title}</title>
+  <link>${domain}</link>
+  <description>${site_desc}</description>
+  ${items}
+</channel>
+
+</rss>`
+	var itemTemlate = `<item>
+    <title>${title}</title>
+    <link>${url}</link>
+    <description>${desc}</description>
+  </item>`
+	var articleArray []string
+	for _, url := range urls {
+		articleStr := os.Expand(itemTemlate, func(s string) string {
+			switch s {
+			case "url":
+				return url.url
+			case "title":
+				return url.name
+			case "desc":
+				return url.name
+			}
+			return ""
+		})
+		articleArray = append(articleArray, articleStr)
+	}
+	itemsStr := strings.Join(articleArray, "\n  ")
+	rssStr := os.Expand(rssTemplate, func(s string) string {
+		switch s {
+		case "site_title":
+			return Title
+		case "domain":
+			return domain
+		case "site_desc":
+			return Title
+		case "items":
+			return itemsStr
+		}
+		return ""
+	})
+	filePath := "./rss.xml"
+	file, _ := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	defer file.Close()
+	write := bufio.NewWriter(file)
+	write.WriteString(rssStr)
+	write.Flush()
+}
+
+func genRobots(path string) {
+	sitemapUrl := Sitemap.Domain + path
+	if strings.ToLower(Sitemap.Tls) == "true" {
+		sitemapUrl = "https://" + sitemapUrl
+	} else {
+		sitemapUrl = "http://" + sitemapUrl
+	}
+	robotsStr := `User-agent: *
+Allow: /
+
+Sitemap: ` + sitemapUrl
+	filePath := "./robots.txt"
+	file, _ := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	defer file.Close()
+	write := bufio.NewWriter(file)
+	write.WriteString(robotsStr)
+	write.Flush()
+}
+
 func genSitemap() error {
 	var sitemapTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
@@ -360,6 +437,7 @@ func genSitemap() error {
 	write := bufio.NewWriter(file)
 	write.WriteString(sitemapStr)
 	write.Flush()
+	go genRSS(urls, domain)
 	return err
 }
 
@@ -367,9 +445,17 @@ func getUrls(urls *[]urlNode, prefix string, node *utils.Node) {
 	for _, item := range node.Children {
 		if !item.IsDir && strings.HasSuffix(item.Name, ".md") {
 			info, _ := os.Stat(item.Path)
+			names := strings.Split(item.Name, "@")
+			var name string
+			if len(names) > 1 {
+				name = strings.TrimSuffix(names[1], ".md")
+			} else {
+				name = strings.TrimSuffix(item.Name, ".md")
+			}
 			url := urlNode{
 				url:  prefix + url.PathEscape(strings.TrimSuffix(item.Name, ".md")),
 				time: info.ModTime().Format("2006-01-02 15:04:05"),
+				name: name,
 			}
 			*urls = append(*urls, url)
 		} else {
@@ -384,4 +470,12 @@ func sitemapHandler(ctx iris.Context) {
 		fpath = Sitemap.ExistFile
 	}
 	ctx.SendFile(fpath, "sitemap.xml")
+}
+func robotsHandler(ctx iris.Context) {
+	fpath := "./robots.txt"
+	ctx.SendFile(fpath, "robots.txt")
+}
+func rssHandler(ctx iris.Context) {
+	fpath := "./rss.xml"
+	ctx.SendFile(fpath, "rss.xml")
 }
